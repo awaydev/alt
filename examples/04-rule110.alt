@@ -1,0 +1,21 @@
+use std
+
+40 =: SIZE
+
+' ' SIZE filled_array SIZE 2 - '*' arrset SIZE 1 - '*' arrset =: k
+
+0 while dup 1 + SIZE < {
+    k '' join println
+
+    [
+        0 =: i
+        while i k len < {
+            [k i 1 - arr_at k i arr_at k i 1 + arr_at] '' join =: x
+            i 0 = x "   " = x "***" = || || if { ' ' }
+            else { '*' }
+            i 1 + =: i
+        }
+    ] =: k
+
+    1 +
+}

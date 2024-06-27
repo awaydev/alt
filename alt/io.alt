@@ -1,0 +1,16 @@
+bind println r#"
+let a = stack.pop().unwrap();
+println!("{}", get_string(a));
+"#
+
+bind print r#"let a = stack.pop().unwrap(); print!("{}", get_string(a));"#
+
+bind absolute_path "
+// absolute_path
+use std::path;
+let a = stack.pop().unwrap(); stack.push(Value::String(path::absolute(get_string(a)).unwrap().into_os_string().into_string().unwrap()));"
+
+bind to_number r#"
+if let Value::String(a) = stack.pop().unwrap() { stack.push(Value::Real(a.parse::<f64>().expect(&format!("ERROR: Cannot parse {a} as number").as_str()))); }"#
+
+bind to_string r#"let a = stack.pop().unwrap(); stack.push(Value::String(get_string(a)));"#

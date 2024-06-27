@@ -1,0 +1,11 @@
+use io
+use array
+use stack_manipulation
+
+[ "a" "b" "c" "d" ]
+let array {
+    0 while dup array len < {
+        array over arr_at println
+        1 +
+    }
+}

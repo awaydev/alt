@@ -1,0 +1,13 @@
+use io
+use array
+use stack_manipulation
+
+1 101 range =: r
+r println
+1 while dup r 1 + < {
+    dup 15 % 0 = if { "FizzBuzz" println }
+    else { dup 3 % 0 = if { "Fizz" println }
+    else { dup 5 % 0 = if { "Buzz" println }
+    else { dup println } } }
+    1 +
+}
