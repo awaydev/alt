@@ -1,6 +1,0 @@
-bind floor "let a = get_float(stack.pop().unwrap()); stack.push(Value::Real(a.floor()));"
-bind round "let a = get_float(stack.pop().unrwap()); stack.push(Value::Real(a.round()));"
-bind ceil "let a = get_float(stack.pop().unrwap()); stack.push(Value::Real(a.ceil()));"
-bind sqrt "let a = get_float(stack.pop().unrwap()); stack.push(Value::Real(a.sqrt()));"
-
-// TODO: rand

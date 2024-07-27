@@ -1,4 +1,0 @@
-bind exit "std::process::exit(get_float(stack.pop().unwrap()) as i32);"
-
-bind get_args_force "let a = std::env::args(); for i in a { stack.push(Value::String(i.to_string())) }"
-bind get_args "let a = std::env::args(); let mut b: Vec<Value> = vec![]; for i in a { b.push(Value::String(i.to_string())); } stack.push(Value::Arr(b));"

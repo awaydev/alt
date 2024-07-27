@@ -1,214 +1,263 @@
-use std::{collections::HashMap, fs::File, io::Read, process::exit};
+use std::collections::HashMap;
+use crate::bytecode::value::{ Value, is_static_array };
 
-use crate::{ir::{get_all_instructions, LogicOp, MathOp, Value}, lexer::lex, lexer_rules::get_lexer_rules};
-
-pub fn transpile (instructions: Vec<Value>) -> String {
-    let mut binds: HashMap<String, String> = HashMap::new();
-
+pub fn transpile (instructions: Vec<Value>, binds: &mut HashMap<String, String>) -> String {
     let code = format!(r#"
 #![allow(warnings, unused)]
+mod alt;
+use std::sync::{{Arc, Mutex}};
 
-#[derive(PartialEq, Clone)]
-enum Value {{
-    String(String), Real(f64), Boolean(bool), Arr(Vec<Value>), Undefined
-}}
-
-fn get_float (v: Value) -> f64 {{
-    match v {{
-        Value::String(x) => {{ return x.len() as f64 }}
-        // Value::Int(x) => {{ return x as f64 }}
-        Value::Real(x) => {{ return x }}
-        Value::Boolean(x) => {{ if x {{ return 1.0 }} else {{ return 0.0 }} }}
-        Value::Arr(x) => {{ return x.len() as f64 }}
-        _ => {{ return 0.0 }}
-    }}
-}}
-
-fn fmgs (v: Value) -> String {{ match v {{ Value::String(x) => {{ return format!("\"{{x}}\"") }} _ => {{ return get_string(v) }} }} }}
-
-fn get_string (v: Value) -> String {{
-    match v {{
-        Value::String(x) => {{ return x }}
-        // Value::Int(x) => {{ return x.to_string() }}
-        Value::Real(x) => {{ return x.to_string() }}
-        Value::Boolean(x) => {{ return x.to_string() }}
-        Value::Arr(x) => {{ format!("[{{}}]", x.iter().map(|v| fmgs(v.clone())).collect::<Vec<String>>().join(", ")) }}
-        _ => {{ return "undefined".to_string() }}
-    }}
-}}
-
-fn get_boolean (v: Value) -> bool {{
-    match v {{
-        Value::Boolean(x) => {{ return x }}
-        Value::String(x) => {{ return true }}
-        Value::Real(x) => {{ if x > 0.0 {{ return true }} else {{ return false }}  }}
-        Value::Arr(x) => {{ return true }}
-        _ => {{ return false }}
-    }}
-}}
-
-fn get_array (v: Value) -> Vec<Value> {{
-    match v {{
-        Value::Arr(x) => {{ return x }}
-        Value::String(x) => {{ return x.chars().map(|x| Value::String(x.to_string())).collect::<Vec<Value>>() }}
-        Value::Real(x) => {{ return vec![Value::Real(0.0); x as usize] }}
-        Value::Boolean(x) => {{ return vec![Value::Boolean(x)] }}
-        _ => {{ return vec![] }}
-    }}
-}}
+use alt::{{ value::*, display::*, stack::{{ pop, push }}, collections::{{ dict }}, ops::{{ set }}, r#ref::{{Ref, Covered}} }};
 
 fn main () {{
     let mut stack: Vec<Value> = vec![];
 
 // generated code
 {}
-}}    
-    "#, instructions_to_code(instructions, &mut binds).join("\n"));
+    // dump stack
+    println!("{{:?}}", Value::Arr(stack));
+}}
+"#, instructions_to_code(instructions, binds, 0).join("\n"));
 
-    return code
+    code
 }
 
-fn instructions_to_code (instructions: Vec<Value>, binds: &mut HashMap<String, String>) -> Vec<String> {
+fn instructions_to_code (instructions: Vec<Value>, binds: &mut HashMap<String, String>, mode: i32) -> Vec<String> {
     let mut code_parts: Vec<String> = vec![];
 
-    for ins in instructions {
-        if let Some(x) = instruction_to_code(ins, binds) {
+    for instruction in instructions {
+        if let Some(x) = instruction_to_code(instruction, binds, mode) {
             code_parts.push(x);
         }
     }
 
-    code_parts
+    return code_parts
 }
 
-fn instruction_to_code (instruction: Value, binds: &mut HashMap<String, String>) -> Option<String> {
+fn instruction_to_code (instruction: Value, binds: &mut HashMap<String, String>, mode: i32) -> Option<String> {
     match instruction {
-        Value::Real(y) => {return Some(format!("stack.push(Value::Real({y:?}));"))}
-        Value::String(y) => {return Some(format!("stack.push(Value::String(\"{y}\".to_string()));"))}
-        Value::Boolean(y) => {return Some(format!("stack.push(Value::Boolean({y}));"))}
-        Value::MathOp(op) => {
-            let mut a = "";
-            match op {
-                MathOp::Add => a = "b + a",
-                MathOp::Div => a = "b / a",
-                MathOp::Sub => a = "b - a",
-                MathOp::Mul => a = "b * a",
-                MathOp::Mod => a = "b % a",
-                MathOp::BitShiftLeft => a = "((b as i32) << (a as i32)) as f64",
-                MathOp::BitShiftRight => a = "((b as i32) >> (a as i32)) as f64",
-                MathOp::Pow => a = "b.powf(a)"
+        Value::Array(_) | Value::Number(_) | Value::String(_) | Value::Get(_) | Value::NumOp(_, _, _) | Value::Not(_) | Value::LogOp(_, _, _) | Value::Ref(_)
+        | Value::Call(_, _) | Value::Boolean(_) | Value::Dict(_, _) | Value::Pick(_, _) | Value::Type(_) | Value::RustReturnableBinding(_) => {
+            return Some(match mode {
+                3 => { format!("break 'block {};", unwrap_typed(instruction, binds)) }
+                2 => { format!("result = {};", unwrap_typed(instruction, binds)) }
+                1 => { format!("return {};", unwrap_typed(instruction, binds)) }
+                0 => { format!("push(&mut stack, {});", unwrap_typed(instruction, binds)) }
+                _ => { unwrap_typed(instruction, binds) }
+            });
+        }
+
+        Value::Block(body) => return Some(format!("{{ {} }}", instructions_to_code(body, binds, mode).join("\n"))),
+
+        Value::RefAssign(name, value) => {
+            let v = unwrap_typed(*value, binds);
+            if let Some(x) = binds.get(&name) {
+                if x == "var" { return Some(format!("*_v_{name}.lock() = {v};")) }
+                else { todo!() }
             }
 
-            return Some(format!("let a = get_float(stack.pop().unwrap()); let b = get_float(stack.pop().unwrap());
-stack.push(Value::Real({a}));"))
+            binds.insert(name.clone(), "var".to_string());
+
+            return Some(format!("let mut _v_{name} = nvar!({v});"))
         }
-        Value::LogicOp(op) => {
-            let mut a = "";
-            match op {
-                LogicOp::Eq => a = "b == a",
-                LogicOp::NotEq => a = "b != a",
-                LogicOp::Less => a = "get_float(b) < get_float(a)",
-                LogicOp::LessEq => a = "get_float(b) <= get_float(a)",
-                LogicOp::More => a = "get_float(b) > get_float(a)",
-                LogicOp::MoreEq => a = "get_float(b) >= get_float(a)",
-                LogicOp::Not => { return Some(format!("let a = stack.pop().unwrap(); stack.push(Value::Boolean(!get_boolean(a)));")) },
-                LogicOp::And => a = "get_boolean(b) && get_boolean(a)",
-                LogicOp::Or => a = "get_boolean(b) || get_boolean(a)"
+
+        Value::Var(name, value) => {
+            if name == "_" { return Some(format!("let _ = {};", unwrap_typed(*value, binds))) }
+
+            if let Some(x) = binds.get(&name) {
+                if x == "var" { return Some(format!("*_v_{name}.lock() = {};", unwrap_typed(*value, binds))) }
+                else { todo!() }
             }
 
-            return Some(format!("let a = stack.pop().unwrap(); let b = stack.pop().unwrap();
-stack.push(Value::Boolean({a}));"))
+            binds.insert(name.clone(), "var".to_string());
+
+            return Some(format!("let mut _v_{name} = {};", parse_value_as_ref(*value, binds)))
         }
-        Value::If(b) => {
-            return Some(format!(r#"
-let Value::Boolean(a) = stack.pop().unwrap() else {{ std::process::exit(1) }}; if a {{ {} }}
-"#, instructions_to_code(b, binds).join("\n")))
+        Value::Set(arr, index, value) => {
+            return Some(format!("{{let index = {}; let value = {}; set({}, index, value); }}", unwrap_typed(*index, binds), unwrap_typed(*value, binds), parse_value_as_ref(*arr, binds)))
+        },
+        Value::Push(arr, value) => {
+            return Some(format!("{{ let value = {}; let _ = {}.push(value); }}", unwrap_typed(*value, binds), unwrap_typed(*arr, binds)))
+        },
+
+        Value::If(condition, body) => {
+            let condition = match *condition {
+                Value::LogOp(_, _, _) | Value::Boolean(_) => unwrap_instruction(*condition, binds).unwrap(),
+                _ => { format!("{}.cast_bool()", unwrap_typed(*condition, binds)) }
+            };
+            return Some(format!(r#"if {condition} {{ {} }}"#, instructions_to_code(body, &mut binds.clone(), mode).join("\n")))
         }
-        Value::Else(b) => {
-            return Some(format!(r#"else {{{}}}"#, instructions_to_code(b, binds).join("\n")))
+        Value::Else(body) => {
+            return Some(format!(r#"else {{ {} }}"#, instructions_to_code(body, &mut binds.clone(), mode).join("\n")))
         }
-        Value::While(condition, body) => {
-            let mut binds_local = binds.clone();
-            let c = instructions_to_code(condition, &mut binds_local).join("\n");
-            let b = instructions_to_code(body, &mut binds_local).join("\n");
-            
-            return Some(format!(r#"/* while */ loop {{
-{c}let Value::Boolean(a) = stack.pop().unwrap() else {{ std::process::exit(1) }}; if !a {{ break; }};
-{b}
-}}"#))
+        Value::ElseIf(condition, body) => {
+            let condition = match *condition {
+                Value::LogOp(_, _, _) | Value::Boolean(_) => unwrap_instruction(*condition, binds).unwrap(),
+                _ => { format!("{}.cast_bool()", unwrap_typed(*condition, binds)) }
+            };
+            return Some(format!(r#"else if {condition} {{ {} }}"#, instructions_to_code(body, &mut binds.clone(), mode).join("\n")))
         }
+
         Value::Loop(body) => {
-            let mut binds_local = binds.clone();
-            return Some(format!(r#"/* loop */ loop {{{}}}"#, instructions_to_code(body, &mut binds_local).join("\n")))
+            return Some(format!(r#"loop {{{}}}"#, instructions_to_code(body, &mut binds.clone(), mode).join("\n")))
         }
-        Value::Let(args, body) => {
-            let mut binds = binds.clone();
-            args.iter().for_each(|x| {conflict_binds_check(x, &mut binds); binds.insert(x.to_string(), format!("stack.push(__l_{x}.clone());"));});
-            let parsed_args = args.iter().rev().map(|f| format!("let __l_{f} = stack.pop().unwrap();")).collect::<Vec<String>>().join("\n");
-            let body = instructions_to_code(body, &mut binds).join("\n");
-            return Some(format!(r#"/* let */ {{ {parsed_args} {body} }}"#))
-        }
-        Value::Var(name) => {
-            if let Some(_) = binds.get(&name) {
-                return Some(format!(r#"__l_{name} = stack.pop().unwrap();"#))
-            }
-            binds.insert(name.clone(), format!("stack.push(__l_{name}.clone());"));
-            return Some(format!(r#"let mut __l_{name} = stack.pop().unwrap();"#))
-        }
-        Value::Macro(name, body) => {
-            conflict_binds_check(&name, binds);
-            binds.insert(name.clone(), format!("__m_{}!();", &name));
-            let mut binds_local = binds.clone();
-            let body = instructions_to_code(body, &mut binds_local).join("\n");
-            return Some(format!(r#"macro_rules! __m_{name} {{
-() => {{
-{body}
-}}
-}}"#))
-        }
-        Value::Call(x) => {
-            if let Some(y) = binds.get(&x.to_string()) {
-                return Some(format!("{y}"))
-            }
-            else {
-                eprintln!("ERROR: Undefined call of `{x}`");
-                exit(1);
-            }
-        }
-        Value::RustBind(name, body) => {
-            conflict_binds_check(&name, binds);
-            binds.insert(name, body.replace(r#"\""#, r#"""#));
-        }
-        Value::Use(path) => {
-            let pathstr = path.clone().into_os_string().into_string().unwrap();
-            if let None = binds.get(&pathstr) {
-                binds.insert(pathstr.clone(), String::new());
-                let mut nc = String::new();
-                let _ = File::open(path).unwrap().read_to_string(&mut nc);
-                let tks = lex(nc, get_lexer_rules());
-                let ins = get_all_instructions(tks);
-                return Some(format!("/* use {pathstr} */{}", instructions_to_code(ins, binds).join("\n")))
-            }
-        }
-        Value::Array(x) => {
-            let mut local_binds = binds.clone();
-            return Some(format!(r#"/* [...] */ {{
-let mut lstack = &mut stack;
-let mut stack: Vec<Value> = vec![];
-{}
-lstack.push(Value::Arr(stack));
-}}"#, instructions_to_code(x, &mut local_binds).join("\n")))
-        }
-        _ => {eprintln!("WARN: Unknown instruction: {instruction:?}");}
-    }
+        Value::Break => { return Some("break;".to_string()) }
+        Value::Continue => { return Some("continue;".to_string()) }
 
+        Value::Println(a) => { return Some(format!("println!(\"{{}}\", {});", unwrap_typed(*a, binds))) }
+
+        Value::Fn(name, args, body) => {
+            binds.insert(name.clone(), "function".to_string());
+            let binds = &mut binds.clone();
+            let r_args = || { let x = args.join(": Covered, mut _v_"); if args.len() > 0 { return format!("mut _v_{x}: Covered") } else { return x } };
+            args.iter().for_each(|i| { binds.insert(i.clone(), "var".to_string()); });
+
+            return Some(format!(r#"fn _f_{name} ({}) -> Value {{ {} Value::Empty }}"#, r_args(), instructions_to_code(body, binds, 1).join("\n")))
+        }
+
+        Value::Mov(into) => {
+            if into == "_" { return Some(format!("let _ = pop(&mut stack);")) }
+            binds.insert(into.clone(), "var".to_string());
+            return Some(format!(r#"let _v_{into} = pop(&mut stack);"#))
+        }
+        Value::RustBinding(a) => {
+            return Some(convert_rust_binding(a, binds));
+        },
+        _ => {}
+    }
     None
 }
 
-fn conflict_binds_check (name: &String, binds: &mut HashMap<String, String>) {
-    if let Some(x) = binds.get(name) {
-        if x.starts_with("__m") {
-            eprintln!("ERROR: conflicting with the same defined macro: `{name}`. Macro is not allowed to redefine.");
-            exit(1);
+fn unwrap_typed (instruction: Value, binds: &mut HashMap<String, String>) -> String {
+    match instruction {
+        Value::Number(a) => format!("Value::Number({a:?})"),
+        Value::String(_) => format!("Value::String({})", unwrap_instruction(instruction, binds).unwrap()),
+        Value::Boolean(_) => format!("Value::Boolean({})", unwrap_instruction(instruction, binds).unwrap()),
+        Value::Get(name) => {
+            if let Some(_) = binds.get("*NO_CLONE") { return format!("_v_{name}") }
+            format!("_v_{name}.clone()")
+        },
+        Value::LogOp(_, _, _) | Value::Not(_) => format!("Value::Boolean({})", unwrap_instruction(instruction, binds).unwrap()),
+        Value::NumOp(a, b, op) => {
+            macro_rules! m { () => { return format!("({} {op} {})", unwrap_typed(*a, binds), unwrap_typed(*b, binds)); }; }
+            match *a { Value::Get(_) | Value::NumOp(_, _, _) | Value::LogOp(_, _, _) => { m!(); } _ => {} }
+            match *b { Value::Get(_) | Value::NumOp(_, _, _) | Value::LogOp(_, _, _) => { m!(); } _ => {} }
+            return format!("Value::Number({})", unwrap_instruction(Value::NumOp(a, b, op), binds).unwrap())
+        },
+        Value::Array(body) => {
+            println!("{body:?}");
+            if is_static_array(&body) {
+                return format!("Value::Arr(vec![{}])", instructions_to_code(body, binds, -1).join(", "));
+            }
+            format!("{{ let mut stack: Vec<Value> = vec![]; {} Value::Arr(stack) }}", instructions_to_code(body, &mut binds.clone(), 0).join("\n"))
+        },
+        Value::Call(_, _) => unwrap_instruction(instruction, binds).unwrap(),
+        Value::Block(body) => format!("'block: {{ {} break 'block Value::Empty; }}", instructions_to_code(body, binds, 3).join("\n")),
+        Value::Dict(k, v) => format!("Value::Dict(dict({}, {}))", unwrap_instruction(Value::Array(k), binds).unwrap(), unwrap_instruction(Value::Array(v), binds).unwrap()),
+        Value::Pick(arr, index) => format!("{}[{}].clone()", unwrap_typed(*arr, binds), unwrap_typed(*index, binds)),
+        Value::Type(_) => format!("Value::String({})", unwrap_instruction(instruction, binds).unwrap()),
+        Value::RustReturnableBinding(a) => format!("{{ {} }}", convert_rust_binding(a, binds)),
+
+        Value::Ref(x) => {
+            if let Value::Get(x) = *x {
+                format!("Value::Ref(_v_{x}.clone_ref())")
+            }
+            else {
+                format!("Value::Ref(nvar!({}))", unwrap_typed(*x, binds))
+            }
+        },
+
+        _ => "Value::Undefined".to_string()
+    }
+}
+
+fn unwrap_instruction (instruction: Value, binds: &mut HashMap<String, String>) -> Option<String> {
+    match instruction {
+        Value::Number(a) => { return Some(format!("{a:?}")) }
+        Value::String(a) => { return Some(format!("{a:?}.to_string()")) }
+        Value::Boolean(a) => { return Some(format!("{a:?}")) }
+        
+        Value::NumOp(a, b, op) => {
+            let a = convert_number(*a, binds);
+            let b = convert_number(*b, binds);
+            if op == "<<" || op == ">>" { return Some(format!("((({a} as i64) {op} ({b} as i64)) as f64)")) }
+
+            return Some(format!("({a} {op} {b})"))
+        }
+
+        Value::LogOp(a, b, op) => {
+            let x;
+            let y;
+            match op.as_str() {
+                "<" | ">" | "<=" | ">=" => {x = convert_number(*a, binds); y = convert_number(*b, binds);}
+                _ => {x = unwrap_typed(*a, binds); y = unwrap_typed(*b, binds);}
+            }
+            if op == "=" { return Some(format!("({x} == {y})")) }
+
+            return Some(format!("({x} {op} {y})"))
+        }
+        Value::Not(a) => { return Some(format!("!({})", unwrap_instruction(*a, binds).unwrap())) }
+
+        Value::Get(name) => { return Some(format!("_v_{name}")) }
+        Value::Ref(x) => {
+            if let Value::Get(x) = *x {
+                return Some(format!("_v_{x}"))
+            }
+            else {
+                return Some(format!("nvar!({})", unwrap_typed(*x, binds)))
+            }
+        }
+
+        Value::Call(name, args) => { return Some(format!("_f_{name}({})", args.iter().map(|i| parse_value_as_ref(i.clone(), binds)).collect::<Vec<String>>().join(", "))) }
+        Value::Array(body) => {
+            if is_static_array(&body) {
+                return Some(format!("vec![{}]", instructions_to_code(body, binds, -1).join(", ")));
+            }
+            return Some(format!("{{ let mut stack: Vec<Value> = vec![]; {} stack }}", instructions_to_code(body, &mut binds.clone(), 0).join("\n")));
+        }
+        Value::Type(a) => { return Some(format!("{}.cast_type()", unwrap_typed(*a, binds))) },
+        _ => {}
+    }
+    None
+}
+
+fn parse_value_as_ref (instruction: Value, binds: &mut HashMap<String, String>) -> String {
+    if let Value::Ref(x) = instruction.clone() {
+        if let Value::Get(x) = *x {
+            return format!("_v_{x}.clone_ref()")
         }
     }
+    return format!("nvar!({})", unwrap_typed(instruction, binds))
+}
+
+fn convert_number (instruction: Value, binds: &mut HashMap<String, String>) -> String {
+    match instruction {
+        Value::NumOp(_, _, _) | Value::Number(_) => unwrap_instruction(instruction, binds).unwrap(),
+        Value::String(_) | Value::Array(_) => format!("{}.len() as f64", unwrap_instruction(instruction, binds).unwrap()),
+        _ => format!("{}.cast_float()", unwrap_typed(instruction, binds))
+    }
+}
+
+fn convert_rust_binding (binding: Vec<Value>, binds: &mut HashMap<String, String>) -> String {
+    let mut res: Vec<String> = vec![];
+    
+    let mut i = 0;
+    while i < binding.len() {
+        match &binding[i] {
+            Value::String(a) => { res.push(a.replace(r#"\""#, r#"""#)); }
+            Value::Get(a) => { res.push(format!("_v_{a}")) }
+            Value::Ref(a) => {
+                if let Value::String(x) = *a.clone() {
+                    res.push(format!("\"{x}\""));
+                }
+                else {
+                    res.push(instruction_to_code(*a.clone(), binds, -1).unwrap());
+                }
+            }
+            _ => { res.push(instruction_to_code(binding[i].clone(), binds, -1).unwrap()) }
+        }
+        i += 1;
+    }
+
+    return res.join("")
 }

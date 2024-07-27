@@ -17,18 +17,18 @@ pub fn get_lexer_rules () -> Vec<Rule> {
         },
         Rule {
             typ: TokenKind::Comment,
-            regex: Regex::new(r#"^//((.*)\n|(.*)$)"#).unwrap()
+            regex: Regex::new(r#"(?s)^;;((.*?);;)"#).unwrap()
+        },
+        Rule {
+            typ: TokenKind::Assign,
+            regex: Regex::new(r#"^(->|\=\:)"#).unwrap()
         },
         Rule {
             typ: TokenKind::Operator,
             regex: Regex::new(r#"^(\*\*|[-+/*%]|<<|>>)"#).unwrap()
         },
         Rule {
-            typ: TokenKind::Assign,
-            regex: Regex::new(r#"^(\=\:)"#).unwrap()
-        },
-        Rule {
-            typ: TokenKind::CurlyBrace,
+            typ: TokenKind::CurlyBracket,
             regex: Regex::new(r#"^(\{|\})"#).unwrap()
         },
         Rule {
@@ -36,12 +36,20 @@ pub fn get_lexer_rules () -> Vec<Rule> {
             regex: Regex::new(r#"^(\[|\])"#).unwrap()
         },
         Rule {
+            typ: TokenKind::SpecialSymbol,
+            regex: Regex::new(r#"^(\#\!|\!\#)"#).unwrap()
+        },
+        Rule {
             typ: TokenKind::Logical,
             regex: Regex::new(r#"^(=|<=|>=|>|<|!=|\&\&|\|\||!|and|or|not)"#).unwrap()
         },
         Rule {
+            typ: TokenKind::SpecialSymbol,
+            regex: Regex::new(r#"^(\&)"#).unwrap()
+        },
+        Rule {
             typ: TokenKind::Keyword,
-            regex: Regex::new(r#"^([A-Za-zА-Яа-я_:]+\d*)"#).unwrap()
+            regex: Regex::new(r#"^([A-Za-zА-Яа-я_:!]+\d*)"#).unwrap()
         }
     ]
 }

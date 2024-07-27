@@ -1,0 +1,33 @@
+;; Compile-time rule110. Everything happens in the compile-time. Only `println` instructions will be in executable ;;
+
+40
+let SIZE {
+
+    [ SIZE 2 - times { ' ' } '*' '*' ]
+
+    SIZE 1 - times {
+
+        let k {
+            k '' + println
+
+            [
+                0
+                k 0 + times {
+                    let i {
+                        [ k i 1 - pick k i pick k i 1 + pick ] '' +
+                        let x {
+                            i 0 = x "   " = x "***" = || || if { ' ' }
+                            else { '*' }
+                        }
+                        i 1 +
+                    }
+                }
+                let i {}
+            ]
+        }
+
+    }
+
+    let k {}
+
+}

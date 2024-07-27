@@ -1,11 +1,12 @@
-use io
-use array
-use stack_manipulation
+[ 1 2 3 ] -> x
 
-[ "a" "b" "c" "d" ]
-let array {
-    0 while dup array len < {
-        array over arr_at println
-        1 +
-    }
+0 -> i
+loop {
+    i x 0 + >= if { break }
+    x i pick println
+    i 1 + -> i
 }
+
+x 0 5 set
+
+x println ;; expected to be [ 5 2 3 ] ;;
