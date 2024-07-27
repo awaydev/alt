@@ -9,45 +9,7 @@ fn main () {
     let mut stack: Vec<Value> = vec![];
 
 // generated code
-println!("{}", Value::String("                                      **".to_string()));
-println!("{}", Value::String("                                     ***".to_string()));
-println!("{}", Value::String("                                    ** *".to_string()));
-println!("{}", Value::String("                                   *****".to_string()));
-println!("{}", Value::String("                                  **   *".to_string()));
-println!("{}", Value::String("                                 **** **".to_string()));
-println!("{}", Value::String("                                **  ****".to_string()));
-println!("{}", Value::String("                               ******  *".to_string()));
-println!("{}", Value::String("                              **    ****".to_string()));
-println!("{}", Value::String("                             ****  **  *".to_string()));
-println!("{}", Value::String("                            **  ********".to_string()));
-println!("{}", Value::String("                           ******      *".to_string()));
-println!("{}", Value::String("                          **    **    **".to_string()));
-println!("{}", Value::String("                         ****  ****  ***".to_string()));
-println!("{}", Value::String("                        **  ****  **** *".to_string()));
-println!("{}", Value::String("                       ******  ****  ***".to_string()));
-println!("{}", Value::String("                      **    ****  **** *".to_string()));
-println!("{}", Value::String("                     ****  **  ****  ***".to_string()));
-println!("{}", Value::String("                    **  ********  **** *".to_string()));
-println!("{}", Value::String("                   ******      ****  ***".to_string()));
-println!("{}", Value::String("                  **    **    **  **** *".to_string()));
-println!("{}", Value::String("                 ****  ****  ******  ***".to_string()));
-println!("{}", Value::String("                **  ****  ****    **** *".to_string()));
-println!("{}", Value::String("               ******  ****  **  **  ***".to_string()));
-println!("{}", Value::String("              **    ****  ************ *".to_string()));
-println!("{}", Value::String("             ****  **  ****          ***".to_string()));
-println!("{}", Value::String("            **  ********  **        ** *".to_string()));
-println!("{}", Value::String("           ******      ******      *****".to_string()));
-println!("{}", Value::String("          **    **    **    **    **   *".to_string()));
-println!("{}", Value::String("         ****  ****  ****  ****  **** **".to_string()));
-println!("{}", Value::String("        **  ****  ****  ****  ****  ****".to_string()));
-println!("{}", Value::String("       ******  ****  ****  ****  ****  *".to_string()));
-println!("{}", Value::String("      **    ****  ****  ****  ****  ****".to_string()));
-println!("{}", Value::String("     ****  **  ****  ****  ****  ****  *".to_string()));
-println!("{}", Value::String("    **  ********  ****  ****  ****  ****".to_string()));
-println!("{}", Value::String("   ******      ****  ****  ****  ****  *".to_string()));
-println!("{}", Value::String("  **    **    **  ****  ****  ****  ****".to_string()));
-println!("{}", Value::String(" ****  ****  ******  ****  ****  ****  *".to_string()));
-println!("{}", Value::String(" *  ****  ****    ****  ****  ****  ****".to_string()));
+println!("{}", Value::String("                                      **\n                                     ***\n                                    ** *\n                                   *****\n                                  **   *\n                                 **** **\n                                **  ****\n                               ******  *\n                              **    ****\n                             ****  **  *\n                            **  ********\n                           ******      *\n                          **    **    **\n                         ****  ****  ***\n                        **  ****  **** *\n                       ******  ****  ***\n                      **    ****  **** *\n                     ****  **  ****  ***\n                    **  ********  **** *\n                   ******      ****  ***\n                  **    **    **  **** *\n                 ****  ****  ******  ***\n                **  ****  ****    **** *\n               ******  ****  **  **  ***\n              **    ****  ************ *\n             ****  **  ****          ***\n            **  ********  **        ** *\n           ******      ******      *****\n          **    **    **    **    **   *\n         ****  ****  ****  ****  **** **\n        **  ****  ****  ****  ****  ****\n       ******  ****  ****  ****  ****  *\n      **    ****  ****  ****  ****  ****\n     ****  **  ****  ****  ****  ****  *\n    **  ********  ****  ****  ****  ****\n   ******      ****  ****  ****  ****  *\n  **    **    **  ****  ****  ****  ****\n ****  ****  ******  ****  ****  ****  *\n *  ****  ****    ****  ****  ****  ****\n".to_string()));
     // dump stack
     println!("{:?}", Value::Arr(stack));
 }

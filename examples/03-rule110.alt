@@ -4,12 +4,11 @@
 let SIZE {
 
     [ SIZE 2 - times { ' ' } '*' '*' ]
+    ""
 
     SIZE 1 - times {
 
-        let k {
-            k '' + println
-
+        let k s {
             [
                 0
                 k 0 + times {
@@ -24,10 +23,11 @@ let SIZE {
                 }
                 let i {}
             ]
+            s k '' + "\n" + +
         }
 
     }
 
-    let k {}
+    let k s { s println }
 
 }

@@ -174,7 +174,7 @@ fn unwrap_typed (instruction: Value, binds: &mut HashMap<String, String>) -> Str
 fn unwrap_instruction (instruction: Value, binds: &mut HashMap<String, String>) -> Option<String> {
     match instruction {
         Value::Number(a) => { return Some(format!("{a:?}")) }
-        Value::String(a) => { return Some(format!("{a:?}.to_string()")) }
+        Value::String(a) => { return Some(format!("\"{a}\".to_string()")) }
         Value::Boolean(a) => { return Some(format!("{a:?}")) }
         
         Value::NumOp(a, b, op) => {
