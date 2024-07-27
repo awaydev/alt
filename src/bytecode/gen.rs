@@ -50,9 +50,9 @@ fn get_instruction (tokens: &Vec<Token>, instructions: &mut Vec<Value>, binds: &
         TokenKind::Real => {instructions.push(Value::Number(token.value.parse::<f64>().unwrap())); return 1}
         TokenKind::Operator | TokenKind::Logical => {
             let v = token.value.as_str();
-            let b = Box::new(popv(instructions).expect(&format!("{}:{} соси хуй 1", token.line, token.col)));
+            let b = Box::new(popv(instructions).expect(&format!("{}:{} op failed 1", token.line, token.col)));
             if v == "not" || v == "!" { instructions.push(Value::Not(b).process()); return 1 }
-            let a = Box::new(popv(instructions).expect(&format!("{}:{} соси хуй 2", token.line, token.col)));
+            let a = Box::new(popv(instructions).expect(&format!("{}:{} op failed 2", token.line, token.col)));
             match v {
                 "+" | "-" | "/" | "*" | "%" | "<<" | ">>" => instructions.push(Value::NumOp(a, b, token.value.clone()).process()),
                 "**" => instructions.push(Value::Pow(a, b)),
