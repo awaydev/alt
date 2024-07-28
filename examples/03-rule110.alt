@@ -13,7 +13,7 @@ let SIZE {
                 0
                 k 0 + times {
                     let i {
-                        [ k i 1 - pick k i pick k i 1 + pick ] '' +
+                        k [ (i 1 -) i (i 1 +) ] pick '' +
                         let x {
                             i 0 = x "   " = x "***" = || || if { ' ' }
                             else { '*' }
